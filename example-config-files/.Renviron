@@ -1,0 +1,35 @@
+# Example .Renviron file
+# Created 2020-04-29
+
+# .Renviron: save this file in your Documents folder 
+# the documents folder is visible from a terminal in a number of different places
+# depending on your terminal and your drive mapping
+#
+# e.g.
+# MobaXterm
+# /home/USER/MyDocuments
+# Git Bash
+# /e/UserProfiles/USER
+# R terminal
+# //UCLCMDDPRAFSS21/Home/USER/Documents
+
+# obviously replace USER with your username and 
+# similarly the drive (e) or the network share (UCLCMDDPRAFSS21)
+
+# You can get the path your Documents folder (HOME) in R using
+# Sys.getenv('HOME')
+
+# NOTE: 2020-04-30 works for CRAN without proxies but not for remotes::install_github
+# Set-up the proxies so that you can install your own packages
+http_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
+https_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
+HTTP_PROXY=http://www-cache-n.xuclh.nhs.uk:3128/
+HTTPS_PROXY=http://www-cache-n.xuclh.nhs.uk:3128/
+
+# Store API keys etc here
+
+
+# Store secret passwords here
+UDS_PWD=my_secret_password
+UDS_HOST=UCLVLDDDTAEPS02
+UDS_USER=USER
