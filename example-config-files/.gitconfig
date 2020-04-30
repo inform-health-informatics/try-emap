@@ -1,0 +1,12 @@
+# Example .gitconfig file
+# Save this in 'Documents' 
+# View using `git config --global -l`
+[user]
+	name = Your Name 
+    email = "Your@Email.address"
+[http]
+	proxy = http_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
+	PROXY = HTTP_PROXY=HTTP://WWW-CACHE-N.XUCLH.NHS.UK:3128/
+[https]
+	proxy = https_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
+	PROXY = HTTPS_PROXY=HTTP://WWW-CACHE-N.XUCLH.NHS.UK:3128
