@@ -1,7 +1,7 @@
 # Secure or identifiable data
 data/secure/*
 # Temp files
-labbook/*
+
 # History files
 .Rhistory
 .Rapp.history
