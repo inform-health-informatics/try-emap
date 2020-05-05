@@ -9,7 +9,7 @@
 # MobaXterm
 # /home/USER/MyDocuments
 # Git Bash
-# /e/UserProfiles/USER
+# //UCLCMDDPRAFSS21/Home/USER/Documents
 # R terminal
 # //UCLCMDDPRAFSS21/Home/USER/Documents
 
@@ -20,11 +20,12 @@
 # Sys.getenv('HOME')
 
 # NOTE: 2020-04-30 works for CRAN without proxies but not for remotes::install_github
+# NOTE: 2020-05-05 works now for remotes::install_github but keeping this note for future reference
 # Set-up the proxies so that you can install your own packages
-http_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
-https_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
-HTTP_PROXY=http://www-cache-n.xuclh.nhs.uk:3128/
-HTTPS_PROXY=http://www-cache-n.xuclh.nhs.uk:3128/
+# http_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
+# https_proxy=http://www-cache-n.xuclh.nhs.uk:3128/
+# HTTP_PROXY=http://www-cache-n.xuclh.nhs.uk:3128/
+# HTTPS_PROXY=http://www-cache-n.xuclh.nhs.uk:3128/
 
 # Store API keys etc here
 
