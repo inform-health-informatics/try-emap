@@ -1,36 +1,21 @@
 # try-emap
-Try out EMAP using tools available on the UCLH Data Science Desktop
+Welcome to UCLH's Data Science Desktop. This is a short guide to getting up and running with data science in R. We will get your tool kit ready including R, RStudio, and version control. We will then explore EMAP using dbForge and RStudio through a couple of brief vignettes.
 
 
 ## Setting up R
 
-See the example `.Rprofile` and `.Renviron` files in `example-config-files`
-
-- CRAN installs should just work
-- `remotes::install_github` requires the config set-up as above
+See the example `.Rprofile` and `.Renviron` files in `example-config-files`. The former just sets the CRAN mirror, and can be a good place to create paths to local installs for R packages. The latter is a good place to store local usernames and passwords, but make sure that you exclude it from version control.
 
 
 ## Setting up git
 
-Install using https://git-scm.com/download/win
-Then you have Git Bash in the start menu
-Then set up ~/.gitconfig using the example file. Git needs the proxy addresses in the .gitconfig file to work. You can check this using `git config --global --list`.
-
-I seemed to be able to get my credentials stored by using the bash shell from VSCode. Open a terminal and then choose Git Bash as your default shell (e.g. `E:\UserProfiles\USERNAME\AppData\Local\Programs\Git\bin\bash.exe`). You can update this in settings:
-
-```
-{
-    "terminal.integrated.shell.windows": "E:\\UserProfiles\\USERNAME\\AppData\\Local\\Programs\\Git\\bin\\bash.exe"
-}
-```
-
-Now the first time you try to git clone it will open an interactive window where you can enter your username and password.
-
-Note
-- drives in git bash are found at `/driveletter/`
-- your home directory (Documents) is found at `/DRIVELETTER/UserProfiles/USERNAME` (e.g. `/e/UserProfiles/sharris9`)
+Git-Bash and SourceTree are both available. You may need to set-up the http.proxy. This can either be done inside the options of SourceTree, or by writing your own '~/.gitconfig' using the example file. Git needs the proxy addresses in the .gitconfig file to work. You can check this using `git config --global --list`.
 
 ## Setting up DBForge
+
+The first time you start using this it will ask you to activate the product. Don't! It works just fine in the trial, and then the free version. You need to set-up a connection to the UDS.
+
+![](media/devart-connection-dialog.PNG)
 
 ## Putting it all together
 

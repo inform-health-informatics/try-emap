@@ -1,6 +1,10 @@
 # Example .gitconfig file
 # Save this in 'Documents' 
 # View using `git config --global -l`
+
+# Note this is not necessary if you set-up your own configuration within SourceTree
+# SourceTree will write this to E:/UserProfiles/USER/.gitconfig
+
 [user]
 	name = Your Name 
     email = "Your@Email.address"
