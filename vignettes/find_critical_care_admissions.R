@@ -1,14 +1,30 @@
 # Steve Harris
 # 2020-05-06
-# Let's calculate the ICNARC acute physiology score for patients admitted to the ICU, and then plot this against their outcome
+# Calculate the severity of illness models for critical care
+# Part 1: Identify critical care admissions
+# Part 2: define the outcome
+# Part 3: define the admitting physiology
+
+# This file:
+# Part 1 of 3: Identify critical care admissions
+
+# Let's calculate the ICNARC acute physiology score for patients admitted to the
+# ICU, and then plot this against their outcome First we need to identify
+# patients admitted to a critical care area (easy-ish) Then we need to define
+# the beginning of their admission. This is harder because they move between
+# critical care areas, and because they may be readmitted.
 
 # Load libraries
 library(tidyverse)
-library(lubridate)
+library(lubridate) # not part of tidyverse
 library(RPostgres)
 # YMMV but I use data.table much more than tidyverse; Apologies if this confuses
 library(data.table)
 
+# Grab user name and password. I store my 'secrets' in an environment file that
+# remains out of version control (.Renviron). You can see an example in
+# 'example-config-files'. The .Renviron should be at the root of your project or
+# in your 'home'.
 ctn <- DBI::dbConnect(RPostgres::Postgres(),
                       host = Sys.getenv("UDS_HOST"),
                       port = 5432,
@@ -31,19 +47,16 @@ ctn <- DBI::dbConnect(RPostgres::Postgres(),
 # You can load these as follows if you wish e.g.
 # query <- read_file("snippets/SQL/bed_moves.sql")
 
-
-# Part 1: create a table of ICU admissions
-# Part 2: define the outcome
-# Part 3: define the admitting physiology
-
-# Part 1
-# ======
+# Load bed moves
+# ==============
+# THis query returns approx 1e6 rows so it takes a minute or so
 query <- "SELECT * FROM uds.star.bed_moves"
 dt <- DBI::dbGetQuery(ctn, query)
 setDT(dt)
 
 
-# View(unique(dt[,.(department)]))
+# The line below is a quick trick to inspect all departments
+# View(dt[,.N,by=department][order(-N)])
 # First find all MRNs that have been to a critical care area
 mrncc <- unique(dt[department == "UCH T03 INTENSIVE CARE" |
             department == "UCH P03 CV" |
@@ -76,82 +89,27 @@ dtcc[order(mrn,admission),
 # keep all time_jumps > a window
 time_jump_window  <- dhours(4)
 temp <- dtcc[department_jump | abs(time_jump) > time_jump_window | is.na(department_jump) | is.na(time_jump)]
-# now number the department moves
+# now number the department moves: department_i
 temp[order(mrn,admission), department_i := seq_len(.N), by=.(mrn)][]
+# # then create an reversed version (department_r) that you can use to identify the last move
+# temp[order(mrn,-admission), department_r := seq_len(.N), by=.(mrn)][]
 
 # finally join this back on to dtcc
+# dtcc[, c("department_i", "department_r") := NULL]
 dtcc <- temp[dtcc, on=.NATURAL]
-# then roll the department variable forwards
-dtcc[order(mrn,admission), department_i := nafill(department_i, type='locf'), by=mrn]
+
+# then roll the department variable forwards and back
+dtcc[order(mrn,admission), department_i := nafill(department_i, type='locf'), by=mrn][]
+# dtcc[order(mrn,admission), department_r := nafill(department_r, type='locf'), by=mrn][]
+
+# drop intermediate columns
 dtcc[, (c("department_jump", "time_jump", "hl7_location")) := NULL] # drop these intermediate columns
-dtcc
+
+# department admission
+dtcc[order(mrn,admission), dpt_admit_dt := min(admission), by=.(mrn,department_i) ]
+# department discharge
+dtcc[order(mrn,admission), dpt_disch_dt := max(discharge), by=.(mrn,department_i) ]
+
+fwrite(dtcc, file="data/secure/critical_care_bed_moves.csv")
 
 
-stop()
-head(dtcc,20)
-dtcc[order(mrn,admission), ward_move := shift(.SD, type="lag"), by=mrn ]
-
-
-dt[order(-flowsheet_datetime)][mrn=='98006480']
-
-
-
-# Look for Tower Wards
-tower_wards <- grep("UCH T.*", unique(dt$department), value=TRUE)
-
-# Recent admissions to T03 Critical Care
-head(dt[order(-admission)][department == "UCH T03 INTENSIVE CARE"])
-# Recent admissions to P03 Critical Care (COVID Pods)
-head(dt[order(-admission)][department == "UCH P03 CV"])
-
-
-# Inspect current inpatients
-query <- "SELECT * FROM uds.star.bed_moves WHERE department = 'UCH P03 CV'"
-dtt03P <- DBI::dbGetQuery(ctn, query)
-setDT(dtt03P)
-dtt03P[is.na(discharge)][order(department,room,bed),.(mrn,admission,department,room,bed)]
-
-# add in manual check results
-dtt03P[mrn=='98006480', hand_validation_note := 'not in P03: in UCH T03 INTENSIVE CARE / BY02-17']
-dt[order(-admission)][mrn=='98006480']
-
-dtt03P[mrn=='41408340', hand_validation_note := 'not in P03: in UCH T03 INTENSIVE CARE / SR06-06 which happened 1730hrs 04/05/2020']
-dt[order(-admission)][mrn=='41408340']
-
-dtt03P[mrn=='41305935', hand_validation_note := 'not in P03: deceased; BY01-10 now occupied by 21195157']
-dt[order(-admission)][mrn=='41305935']
-
-
-View(dtt03P[is.na(discharge)])
-
-
-# Inspect current inpatients
-dtt03 <- dt[department == "UCH T03 INTENSIVE CARE"]
-dtt03[is.na(discharge)][order(department,room,bed),.(department,room,bed,mrn,admission)]
-
-# Count inpatients on T03 on 1 April 12pm
-# as an exercise that you can then convert to build a report of occupancy over time for any ward
-
-library(lubridate)
-ts <- ymd_hm("2020-04-01 12:00")
-tdt <- dtt03[admit < ts & (is.na(discharge) | discharge > ts)]
-# confirm there are no duplicate beds
-assert_that(uniqueN(tdt[,.(ward,room,bed)]) - tdt[,.N] == 0)
-
-count_ward_occupancy_when <- function(dt, ts) {
-  tdt <- dt[admit < (ts) & (is.na(discharge) | discharge > (ts))]
-  # assert_that(uniqueN(tdt[,.(ward,room,bed)]) - tdt[,.N] == 0)
-  # return a count of unique beds in use at the time point provided
-  return(uniqueN(tdt[,.(ward,room,bed)]))
-}
-
-ts_begin <- ymd_hm("2020-01-01 12:00")
-ts_end <- ymd_hm("2020-04-20 12:00")
-tss <- seq(ts_begin, ts_end, by="1 hour")
-
-sapply(tss, count_ward_occupancy_when, dt=dtt03)
-dtocc <- data.table(ts=tss, occ=sapply(tss, count_ward_occupancy_when, dt=dtt03))
-dtocc
-
-library(ggplot2)
-ggplot(dtocc, aes(x=ts, y=occ)) + geom_step()
