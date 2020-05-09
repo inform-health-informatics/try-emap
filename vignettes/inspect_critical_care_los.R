@@ -1,12 +1,5 @@
 # Steve Harris
 # 2020-05-08
-# Using data files from 1+2 below
-# Part 1: Identify critical care admissions
-# Part 2: define the outcome
-
-
-# This file:
-# Additional: Calculate LoS (length of stay)
 
 # Load libraries
 library(tidyverse)
@@ -18,9 +11,9 @@ library(data.table)
 
 # Load data
 # =================
-dtcc <- readr::read_csv("data/secure/critical_care_bed_moves_and_outcomes.csv")
-setDT(dtcc)
-head(dtcc)
+wdt <- readr::read_csv("data/secure/critical_care_bed_moves.csv")
+setDT(wdt)
+head(wdt)
 
 # Define critical care as either T03 or P03
 dtcc[, cc := ifelse(department == "UCH T03 INTENSIVE CARE" | department == "UCH P03 CV", TRUE,FALSE)]
