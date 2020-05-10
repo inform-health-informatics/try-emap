@@ -7,37 +7,113 @@ library(lubridate) # not part of tidyverse
 library(RPostgres)
 # YMMV but I use data.table much more than tidyverse; Apologies if this confuses
 library(data.table)
+# Interactive plotting
+library(plotly)
+# the following allows the plots to be generated manually
+library(dash)
+library(dashCoreComponents)
+library(dashHtmlComponents)
+library(dashTable)
 
+gg2dash <- function(p, port=8050, height=500) {
+  # take a ggplot and try to use the dash library to plot
+  fig <- ggplotly(p)
+  
+  app <- Dash$new()
+  app$layout(
+    htmlDiv(
+      list(
+        # note that you are still using the same plot created and saved as fig
+        dccGraph(figure=fig,
+                 responsive=TRUE,
+                 style=list("height" = height)) 
+      )
+    )
+  )
+  # defaults to running at 127.0.0.1:8050
+  app$run_server(debug=TRUE, block=TRUE, use_viewer = TRUE, port=port, dev_tools_hot_reload=FALSE)
+}
 
 # Load data
 # =================
-wdt <- readr::read_csv("data/secure/critical_care_bed_moves.csv")
-setDT(wdt)
+rdt <- readr::read_csv("data/secure/critical_care_bed_moves.csv")
+setDT(rdt)
+wdt <- data.table::copy(rdt)
+
+wdt <- unique(wdt[critcare==TRUE,.(mrn,
+                            critcare_i,
+                            critcare_admission,
+                            critcare_discharge,
+                            los=(critcare_discharge-critcare_admission)/ddays(1)
+                            )][order(critcare_admission)])
 head(wdt)
+# View(wdt[is.na(critcare_admission) | is.na(critcare_discharge)])
+summary(wdt$los)
 
-# Define critical care as either T03 or P03
-dtcc[, cc := ifelse(department == "UCH T03 INTENSIVE CARE" | department == "UCH P03 CV", TRUE,FALSE)]
-# View(dtcc[,.(mrn,age,sex,death_date,admission,discharge,department,department_i,bed,dpt_admit_dt,dpt_disch_dt)])
-# Drop all non critical care rows
+# simple inspection
+ggplot(wdt, aes(x=los)) + geom_density()
+gg <- ggplot(wdt, aes(x=critcare_admission, y=los)) + geom_point() + geom_smooth() + scale_y_log10()
+gg2dash(gg)
+
+# now ladder plot of all LoS
+wdt
+
+tdt <- wdt[critcare_admission > ymd("2020-03-01")]
+tdt[, discharged := !is.na(critcare_discharge) ]
+
+tdt[, censored := NULL]
+tdt[, censored := critcare_discharge]
+tdt[is.na(censored), censored := now()]
+tdt[, los_censored := (censored - critcare_admission) / ddays(1)]
+tdt
+
+mmargin <- 1
+
+gg <- ggplot(tdt, aes(x=critcare_admission,
+                      ymin=critcare_admission,
+                      ymax=censored,
+                      colour = discharged)) +
+  geom_linerange(alpha=0.5, size=0.5) +
+  geom_text(data=tdt[los_censored>21 | !discharged], aes(x=critcare_admission,
+                                  y=censored,
+                                  label=mrn),
+            angle=45,
+            check_overlap = TRUE,
+            hjust=-0.1,
+            size=3) +
+  scale_x_datetime(date_breaks = "1 week",
+                   date_labels = "%b %d") +
+  scale_y_datetime(date_breaks = "1 week",
+                   date_labels = "%b %d") +
+  xlab("Date of admission") +
+  ylab("From admission to discharge (dates)") +
+  coord_fixed(ratio=3/2) +
+  theme_minimal()
+  # theme_minimal(margin(t=2*mmargin,r=1*mmargin,b=1*mmargin,l=1*mmargin, unit="cm"))
+gg
+
+gg2dash(gg, height=1000)
 
 
-dtcc[, bed_los := (discharge - admission)/ddays(1)]
-dtcc[cc ==TRUE, cc_los := sum(bed_los), by= mrn]
-# View(dtcc)
+# now use these data to plot occupancy
+setnames(wdt,c('critcare_admission','critcare_discharge'), c('admission', 'discharge') )
 
-dt_los <- dtcc[cc == TRUE, .(
-  admission = min(admission), 
-  cc_los = min(cc_los, na.rm = TRUE),
-  age=min(age),
-  sex=min(sex),
-  dead=max(!is.na(death_date))
-  ), by=mrn]
-dt_los
+count_ward_occupancy_when <- function(dt, ts) {
+  tdt <- dt[admission < (ts) & (is.na(discharge) | discharge > (ts))]
+  # assert_that(uniqueN(tdt[,.(ward,room,bed)]) - tdt[,.N] == 0)
+  # return a count of unique beds in use at the time point provided
+  return(uniqueN(tdt[,.(mrn)]))
+}
 
-summary(dt_los)
+ts_begin <- ymd_hm("2020-02-01 12:00")
+ts_end <- ymd_hm("2020-04-20 12:00")
+tss <- seq(ts_begin, ts_end, by="2 hour")
+tss
 
-ggplot(dt_los, aes(x=cc_los)) + geom_density()
-ggplot(dt_los, aes(x=cc_los, colour=dead==1)) + geom_density()
+# sapply(tss, count_ward_occupancy_when, dt=wdt)
+dtocc <- data.table(ts=tss, occ=sapply(tss, count_ward_occupancy_when, dt=wdt))
+dtocc
 
-ggplot(dt_los, aes(x=admission, y=cc_los)) + geom_point() + geom_smooth() + scale_y_sqrt()
+write_csv(dtocc, 'data/dtocc.csv')
+ggplot(dtocc, aes(x=ts, y=occ)) + geom_step()
 
