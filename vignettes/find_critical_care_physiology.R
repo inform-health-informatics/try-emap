@@ -109,3 +109,8 @@ ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_max_hr)) + geom_point() + geom_sm
 ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_max_tc)) + geom_point() + geom_smooth()
 ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_min_spo2)) + geom_point() + geom_smooth()
 ggplot(dt_phys24, aes(x=dpt_admit_dt, y=age)) + geom_point() + geom_smooth()
+ggplot(dt_phys24, aes(x=dpt_admit_dt, y=age, colour=!is.na(death_date))) + geom_point() + geom_smooth()
+
+# TODO report los by source of admission
+dtcc[department_i == 1 & department == "UCH T03 INTENSIVE CARE" & admission > ymd_hm("2020-03-13 00:00")][order(admission,mrn)][,.(admission,mrn,discharge,department,bed,age,sex)]
+

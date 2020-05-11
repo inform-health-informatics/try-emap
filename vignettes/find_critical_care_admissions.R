@@ -155,12 +155,11 @@ head(wdt)
 
 # Now collapse by department to appropriately define department level moves
 tdt <- collapse_over(wdt, col='department', in_time='admission', out_time='discharge', order_vars=c('mrn','admission'), group='mrn')
-head(tdt)
 # Now collapse by 'critcare' to appropriately define critical care admission periods
 tdt <- collapse_over(tdt, col='critcare', in_time='admission', out_time='discharge', order_vars=c('mrn','admission'), group='mrn')
-head(tdt)
 
-
-fwrite(dtcc, file="data/secure/critical_care_bed_moves.csv")
+wdt <- tdt
+head(wdt)
+fwrite(wdt, file="data/secure/critical_care_bed_moves.csv")
 
 

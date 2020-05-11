@@ -29,11 +29,10 @@ dt_cr <- dt[local_code == "CREA"]
 dt_cr[, creatinine := as.numeric(result_text)]
 dt_cr <- dt_covid[dt_cr, on="mrn"]
 
-mrn_list <- dt_cr[,.N,by=mrn][order(-N)][1:5]$mrn
+mrn_list <- dt_cr[,.N,by=mrn][order(-N)][1:24]$mrn
 dt_plot <- dt_cr[mrn %in% mrn_list]
 gg <- ggplot(dt_plot, aes(x=result_datetime,
                   y=creatinine,
-                  colour=covid,
-                  group = mrn
+                  colour=covid
                   ))
-gg + geom_step()
+gg + geom_step() + facet_wrap(mrn~.)

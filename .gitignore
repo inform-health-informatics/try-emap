@@ -1,5 +1,13 @@
-# Secure or identifiable data
+
+# All data
+# You will need to specifically add data you want to publish to .gitkeep
 data/secure/*
+data/*
+
+# Outputs
+# You will need to specifically add outputs you want to publish to .gitkeep
+media/*
+
 # Temp files
 
 # History files
