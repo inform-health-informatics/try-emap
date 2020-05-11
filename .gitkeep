@@ -1,1 +1,4 @@
 example-config-files/.Renviron
+media/devart-connection-dialog.PNG
+# media that contains aggregate info only; nil identifying
+media/aggregate/*

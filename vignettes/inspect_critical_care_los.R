@@ -17,6 +17,7 @@ library(dashTable)
 
 gg2dash <- function(p, port=8050, height=500) {
   # take a ggplot and try to use the dash library to plot
+  # for interactive inspection
   fig <- ggplotly(p)
   
   app <- Dash$new()
@@ -91,6 +92,7 @@ gg <- ggplot(tdt, aes(x=critcare_admission,
   theme_minimal()
   # theme_minimal(margin(t=2*mmargin,r=1*mmargin,b=1*mmargin,l=1*mmargin, unit="cm"))
 gg
+ggsave('media/critical_care_los_over_time.png')
 
 gg2dash(gg, height=1000)
 

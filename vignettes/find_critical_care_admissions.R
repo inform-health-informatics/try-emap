@@ -143,6 +143,7 @@ wdt <- data.table::copy(rdt)
 # First find all MRNs that have been to a critical care area
 # Narrow definition of critical care
 critical_care_departments <- c( "UCH T03 INTENSIVE CARE", "UCH P03 CV" )
+summary(wdt[department %in% critical_care_departments])
 # Broad definition of critical care
 # critical_care_departments <- c( "UCH T03 INTENSIVE CARE", "UCH P03 CV" , "UCH T07 HDRU")
 
