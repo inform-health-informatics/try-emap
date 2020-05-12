@@ -1,6 +1,8 @@
 # Steve Harris
 # 2020-05-08
 
+stop("TODO: where admission is missing then assume left_censored and replace with 1/1/2020")
+
 # Load libraries
 library(tidyverse)
 library(lubridate) # not part of tidyverse

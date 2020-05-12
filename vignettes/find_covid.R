@@ -41,16 +41,12 @@ ctn <- DBI::dbConnect(RPostgres::Postgres(),
 warning('FIXME: date time fields for CORP are not always being parsed correctly')
 
 # Picks up 2036N + 293P tests roughly; I think these are Crick results (RESP, CORP)
-query <- "SELECT * FROM uds.star.labs WHERE local_code = 'CORP' OR  battery_code = 'NCOV'"
+query <- "SELECT * FROM uds.star.labs WHERE local_code = 'CORP' OR  battery_code = 'NCOV' OR battery_code = 'RCOV' OR local_code = 'CCOV' or local_code = 'ACOV'"
 dt <- DBI::dbGetQuery(ctn, query)
 setDT(dt)
 dt_covid <- data.table::copy(dt)
+# View(dt_covid[,.N,by=.(battery_code,result_text)][order(-N)])
 
-View(dt_covid[,.N,by=.(battery_code,result_text)][order(-N)])
-
-
-
-dt_covid[,.N,by=covid]
 
 # All patients with COVID tests
 mrn_covid <- unique(dt[,.(mrn)])
@@ -63,63 +59,149 @@ setDT(rdt)
 
 # Inner join: so now we have all tests for these patients
 wdt <- rdt[mrn_covid,on="mrn"]
+rm(rdt)
 
-dt_covid[, battery_code := str_to_lower(battery_code)]
-dt_covid[, result_text := str_to_lower(result_text)]
-dt_covid[, covid := NA]
-dt_covid[battery_code == 'resp' & result_text == 'not detected', covid := FALSE ]
-dt_covid[battery_code == 'ncov' & result_text == 'not detected', covid := FALSE ]
-dt_covid[battery_code == 'resp' & result_text == 'positive', covid := TRUE ]
-dt_covid[battery_code == 'ncov' & result_text == 'positive', covid := TRUE ]
+wdt[, battery_code := str_to_lower(battery_code)]
+wdt[, local_code := str_to_lower(local_code)]
+wdt[, result_text := str_to_lower(result_text)]
+wdt[, mapped_name := str_to_lower(mapped_name)]
+
+wdt[, covid := NA]
+
+wdt[local_code == 'acov']
+wdt[local_code == 'acov',.N,by=result_text]
+wdt[local_code == 'acov'  & str_detect(result_text, 'not detected'), covid := FALSE ]
+wdt[local_code == 'acov'  & (result_text == 'positive' ), covid := TRUE ]
+wdt[local_code == 'acov',.N,by=covid][order(-N)]
+
+wdt[local_code == 'ccov']
+wdt[local_code == 'ccov',.N,by=result_text]
+wdt[local_code == 'ccov'  & str_detect(result_text, 'not detected'), covid := FALSE ]
+wdt[local_code == 'ccov'  & (result_text == 'positive' ), covid := TRUE ]
+wdt[local_code == 'ccov',.N,by=covid][order(-N)]
+
+# colindale results?
+wdt[battery_code == 'rcov']
+# View(wdt[battery_code == 'rcov',.N,by=result_text][order(-N)])
+wdt[battery_code == 'rcov'  & str_detect(result_text, 'not detected'), covid := FALSE ]
+wdt[battery_code == 'rcov'  & (result_text == 'positive' | result_text == 'detected'), covid := TRUE ]
+wdt[battery_code == 'rcov',.N,by=covid][order(-N)]
 
 
-# Inspect
-dt[,.N,by=mapped_name][order(-N)]
-# NOTE: many caboodle rows do not have their mapped names
+# full resp screen
+# View(wdt[battery_code == 'resp' & local_code == 'corp'])
+wdt[, covid := NA]
+wdt[battery_code == 'resp' & local_code == 'corp' & result_text == 'not detected', covid := FALSE ]
+wdt[battery_code == 'resp' & local_code == 'corp' & result_text == 'positive', covid := TRUE ]
 
-dt[, short_name := NULL]
-dt[mapped_name == "Oxygen saturation in Blood", short_name := "spo2"]
-dt[mapped_name == "Respiratory rate", short_name := "rr"]
-dt[mapped_name == "Heart rate", short_name := "hr"]
-dt[mapped_name == "Body temperature", short_name := "tc"]
+# just covid tests
+# View(wdt[battery_code == 'ncov' ])
+wdt[battery_code == 'ncov' & result_text == 'not detected', covid := FALSE ]
+wdt[battery_code == 'ncov' & result_text == 'positive', covid := TRUE ]
 
-dt_phys <- dt[!is.na(short_name)]
+# all tests
+wdt[,.N,by=covid]
 
-# Back to the bed moves and outcomes data
-# Now define the first critical care admission
-cc_wards <- c("UCH T03 INTENSIVE CARE", "UCH P03 CV", "UCH T07 HDRU")
-dtcc_1 <- dtcc[department %in% cc_wards & admission == dpt_admit_dt][
-  ,.(mrn,department,department_i,dpt_admit_dt,
-     age,sex,death_date)]
 
-# Rolling join
-dtcc_1[, join_time := dpt_admit_dt]
-setkey(dtcc_1, mrn, join_time)
-dt_phys[, join_time := flowsheet_datetime]
-setkey(dt_phys, mrn, join_time)
 
-# View(dtcc_1[dt_phys, roll=TRUE])
-dt_phys <- dtcc_1[dt_phys, roll=TRUE][,.(mrn,department,department_i,dpt_admit_dt,
-                                         age,sex,death_date,
-                                         csn,flowsheet_datetime,short_name,result=result_as_real)]
-dt_phys[, result_delta := (flowsheet_datetime - dpt_admit_dt)/dhours(1)]
-dt_phys24 <- dt_phys[result_delta < 24]
-dt_phys24 <- dcast.data.table(dt_phys24,
-                              mrn + department + department_i + age + sex + death_date + dpt_admit_dt ~ short_name, 
-                              fun=list(min,max), value.var='result' )
+# View(wdt[mrn=='05036086'])
+# tdt <- wdt[mrn=='05036086'][,.(mrn,result_datetime,result_text,covid )]
 
-# Join back to beds & demographics
-dt_phys24
+# tdt <- tdt[is.na(covid)] # use this to artificially drop the covid row for testing
+# tdt[, covid_t0 := NULL]
+# tdt[!is.na(covid), covid_t0 := min(result_datetime), by=mrn]
+# tdt[, covid_t0 := min(covid_t0, na.rm=TRUE), by=mrn]
 
-# Inspect
-ggplot(dt_phys24, aes(x=result_min_spo2, y=result_max_rr, colour=!is.na(death_date))) + geom_point() + geom_smooth()
-ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_max_rr)) + geom_point() + geom_smooth()
-ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_max_hr)) + geom_point() + geom_smooth()
-ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_max_tc)) + geom_point() + geom_smooth()
-ggplot(dt_phys24, aes(x=dpt_admit_dt, y=result_min_spo2)) + geom_point() + geom_smooth()
-ggplot(dt_phys24, aes(x=dpt_admit_dt, y=age)) + geom_point() + geom_smooth()
-ggplot(dt_phys24, aes(x=dpt_admit_dt, y=age, colour=!is.na(death_date))) + geom_point() + geom_smooth()
+# forward fill covid status
+wdt <- wdt[order(mrn,result_datetime)]
+# capture first covid test; 2nd line just updates over the patient
+wdt[, covid_t0 := NULL]
+wdt[!is.na(covid), covid_t0 := min(result_datetime), by=mrn]
+wdt[, covid_t0 := min(covid_t0, na.rm=TRUE), by=mrn]
+# mrns <- unique(wdt[,.(mrn)])
+# View(wdt[mrns[1:2], on='mrn'][,.(mrn,result_datetime,result_text,covid, covid_t0)])
 
-# TODO report los by source of admission
-dtcc[department_i == 1 & department == "UCH T03 INTENSIVE CARE" & admission > ymd_hm("2020-03-13 00:00")][order(admission,mrn)][,.(admission,mrn,discharge,department,bed,age,sex)]
+
+wdt[, covid_locf := as.numeric(covid)]
+wdt[, covid_locf := nafill(covid_locf, type="locf"),by=mrn]
+wdt[, covid := covid_locf == 1]
+wdt[, covid_locf := NULL]
+
+# save
+fwrite(wdt, 'data/secure/labs_covid.csv')
+
+# Now let's look at ddimer
+# ========================
+wdt <- readr::read_csv('data/secure/labs_covid.csv')
+setDT(wdt)
+pts <- readr::read_csv('data/secure/critical_care_bed_moves.csv')
+setDT(pts)
+mrn_cc <- unique(pts[,.(mrn,critcare=max(critcare)==1)])
+mrn_cc
+
+# change dates to offset
+# just data from beginning of March
+tdt <- wdt[result_datetime > covid_t0]
+tdt[, days := (result_datetime - covid_t0)/ddays(1), by= mrn]
+tdt
+
+
+
+# View(wdt[1:1e5])
+# wdt[1:1e5][local_code == 'tddi']
+ddimer <- tdt[local_code == 'tddi']
+ddimer <- mrn_cc[ddimer, on='mrn']
+ddimer[is.na(critcare), critcare := FALSE]
+ddimer <- ddimer[,.(mrn,days,critcare,covid,result_text,value=as.numeric(result_text))]
+ddimer
+summary(ddimer)
+
+
+ggplot(ddimer, aes(value)) + geom_density()
+ggplot(ddimer, aes(value)) + geom_histogram()
+ggplot(ddimer, aes(x=value,colour=covid)) + geom_density()
+
+# d-dimer over time by covid status following the first test
+ggplot(ddimer[value>10 & value < 75000],
+       aes(x=days, y=value, group=covid, colour=covid)) +
+  geom_point() +
+  geom_smooth() +
+  scale_y_log10() 
+
+# d-dimer over time by covid status following the first test
+ggplot(ddimer[value>10 & value < 75000 & covid == TRUE],
+       aes(x=days, y=value, group=critcare, colour=critcare)) +
+  geom_point() +
+  geom_smooth() +
+  scale_y_log10() +
+  coord_cartesian(xlim=c(0,28))
+
+
+
+lymph <- tdt[local_code == 'ly']
+lymph <- mrn_cc[lymph, on='mrn']
+lymph[is.na(critcare), critcare := FALSE]
+lymph <- lymph[,.(mrn,days,critcare,covid,result_text,value=as.numeric(result_text))]
+lymph
+summary(lymph)
+
+
+ggplot(lymph, aes(value)) + geom_density() + coord_cartesian(xlim=c(0,5))
+ggplot(lymph, aes(x=value,colour=covid)) + geom_density() + coord_cartesian(xlim=c(0,5))
+
+# lymph over time by covid status following the first test
+ggplot(lymph[value < 10],
+       aes(x=days, y=value, group=covid, colour=covid)) +
+  geom_point(alpha=0.1) +
+  geom_smooth() +
+  scale_y_log10() +
+  coord_cartesian(xlim=c(0,28))
+
+# d-dimer over time by covid status following the first test
+ggplot(lymph[value<10 & covid == TRUE],
+       aes(x=days, y=value, group=critcare, colour=critcare)) +
+  geom_point(alpha=0.1) +
+  geom_smooth() +
+  scale_y_log10() +
+  coord_cartesian(xlim=c(0,28))
 
