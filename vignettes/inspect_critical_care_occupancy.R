@@ -28,7 +28,7 @@ summary(wdt$los)
 
 
 # now use these data to plot occupancy
-setnames(wdt,c('critcare_admission','critcare_discharge'), c('admission', 'discharge') )
+# setnames(wdt,c('critcare_admission','critcare_discharge'), c('admission', 'discharge') )
 # View(wdt)
 
 ts_begin <- min(wdt$admission, na.rm = TRUE)
