@@ -36,9 +36,10 @@ local({
 # Set libpaths to include a directory in Documents
 
 # NOTE: 2020-04-30 networked drives don't work with R CMD.exe; needs to be mounted so use latter location
-# .libPaths(c(file.path(Sys.getenv("HOME"), 'config','R') , .libPaths() ))
+.libPaths(c(file.path(Sys.getenv("HOME"), 'config','R') , .libPaths() ))
+
 # UPDATE: 2020-05-05 now seems to work so commenting out this alternative path 
-# .libPaths(c(file.path('B:', 'config','R') , .libPaths() ))
+.libPaths(c(file.path('B:', 'config','R') , .libPaths() ))
 
 message("Library paths .libPaths() are ")
 .libPaths()

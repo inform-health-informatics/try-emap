@@ -24,6 +24,7 @@ mrn_cc <- pts[,.(age=max(age,na.rm=TRUE),
                  death_date=max(death_date,na.rm=TRUE))
                        ,by=mrn]
 describe(mrn_cc)
+# mrn_cc
 
 # Need to 'zero' everything with respect to an initial time
 # covid_t0 is the datetime of the first covid test
@@ -31,10 +32,53 @@ tdt <- wdt[result_datetime > covid_t0]
 tdt[, days := (result_datetime - covid_t0)/ddays(1), by= mrn]
 # View(tdt)
 
-# This section should refactored so that is can work with different labs
 
+rhubarb_sm <- function(lab, time_windows=c(3,7,14), vtrans=vtrans) {
+    # expects a datatable with just a single lab value
+    # returns a cowplot of a series of time horizon plots
+    plts <- list()
+    
+    for (i in time_windows) {
+      # print(i)
+      plt_i <- paste0('plt_', i)
+      mrn_i <- unique(lab[days>i,.(mrn)])
+      dt_i <- mrn_i[lab, on='mrn',nomatch=0][days<i]
+      print(nrow(dt_i))
+      # lab over time by covid status following the first test
+      plt <- ggplot(dt_i,
+                     aes(x=days, y=value)) +
+        geom_line(aes(group=mrn, colour=dead), alpha=0.15, size=0.5) +
+        geom_point(aes(colour=dead), alpha=0.1) +
+        geom_smooth(aes(group=dead, colour=dead)) +
+        scale_y_continuous(trans=vtrans) +
+        coord_trans(y=vtrans) +
+        guides(colour=FALSE) +
+        ggtitle(paste("...", i, "days")) +
+        theme_cowplot() +
+        theme(
+          axis.text.y = element_text(size = 8),
+          text = element_text(size = 8),
+          plot.title = element_text(size=8)
+          
+        )
+      if (i==min(time_windows)) {
+        print('first plot')
+        plts[[plt_i]] <- plt
+      } else {
+        print('other plots')
+        plts[[plt_i]] <- plt +
+          theme(axis.title.y = element_blank(),
+                axis.text.y = element_blank())
+      }
+      
+    }
 
-rhubarb_cowplot <- function(x, tdt, save_pdf=TRUE, file_path=NULL, sampleN=NULL) {
+    p_cow <- cowplot::plot_grid(plotlist=plts, nrow=1)
+    return(p_cow)
+}
+#rhubarb_sm(lab, vtrans='identity')
+
+rhubarb_cowplot <- function(x, tdt, save_pdf=TRUE, file_path=NULL, sampleN=NULL, time_windows=c(3,7,14)) {
   
   # extract args from list
   lab_label <- x$label
@@ -86,7 +130,7 @@ rhubarb_cowplot <- function(x, tdt, save_pdf=TRUE, file_path=NULL, sampleN=NULL)
     scale_y_continuous(trans=vtrans) +
     guides(colour=FALSE) +
     ggtitle(lab_label) +
-    ggtitle("CRP distribution by COVID and Survivor status") +
+    ggtitle(paste(lab_label, "distribution by COVID and Survivor status")) +
     theme_cowplot() +
     theme(
       plot.title = element_text(size=8)
@@ -119,21 +163,9 @@ rhubarb_cowplot <- function(x, tdt, save_pdf=TRUE, file_path=NULL, sampleN=NULL)
       strip.background = element_blank(),
       plot.title = element_text(size=8)
     )
+ 
+  p_sm <- rhubarb_sm(lab, time_windows=time_windows, vtrans=vtrans)
   
-  # lab over time by covid status following the first test
-  p_sm <- ggplot(lab[covid=="COVID-Pos"],
-         aes(x=days, y=value)) +
-    geom_line(aes(group=mrn, colour=dead), alpha=0.15, size=0.5) +
-    geom_point(aes(colour=dead), alpha=0.1) +
-    geom_smooth(aes(group=dead, colour=dead)) +
-    scale_y_continuous(trans=vtrans) +
-    coord_trans(y=vtrans) +
-    guides(colour=FALSE) +
-    ggtitle(paste(lab_label, " smoothed population trajectories by survivor status")) +
-    theme_cowplot() +
-    theme(
-      plot.title = element_text(size=8)
-    )
   
   p_cow <- cowplot::plot_grid(p_dens, p_box, p_sm, p_i)
   if (save_pdf) {
@@ -151,7 +183,7 @@ rhubarb_cowplot(labs[['crp']], tdt)
 labs$ddimer <- list(label = "D-dimer", local_code = "tddi", limits = c(10,40000), vtrans="log10")
 rhubarb_cowplot(labs[['ddimer']], tdt)
 
-labs$lymph <- list(label = "Lymphocytes", local_code = "ly", limits = c(0,6), vtrans="identity")
+labs$lymph <- list(label = "Lymphocytes", local_code = "ly", limits = c(0,3), vtrans="identity")
 rhubarb_cowplot(labs[['lymph']], tdt)
 
 describe(as.numeric( tdt[local_code == "ldh"][['result_text']]))
@@ -180,3 +212,4 @@ rhubarb_cowplot(labs[['trop']], tdt)
 
 # View(unique(tdt[,.(local_code, reference_range)][order(reference_range)]))
 # tdt[local_code == "trp"]
+

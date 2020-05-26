@@ -97,25 +97,3 @@ ggsave('media/critical_care_los_over_time.png')
 gg2dash(gg, height=1000)
 
 
-# now use these data to plot occupancy
-setnames(wdt,c('critcare_admission','critcare_discharge'), c('admission', 'discharge') )
-
-count_ward_occupancy_when <- function(dt, ts) {
-  tdt <- dt[admission < (ts) & (is.na(discharge) | discharge > (ts))]
-  # assert_that(uniqueN(tdt[,.(ward,room,bed)]) - tdt[,.N] == 0)
-  # return a count of unique beds in use at the time point provided
-  return(uniqueN(tdt[,.(mrn)]))
-}
-
-ts_begin <- ymd_hm("2020-02-01 12:00")
-ts_end <- ymd_hm("2020-04-20 12:00")
-tss <- seq(ts_begin, ts_end, by="2 hour")
-tss
-
-# sapply(tss, count_ward_occupancy_when, dt=wdt)
-dtocc <- data.table(ts=tss, occ=sapply(tss, count_ward_occupancy_when, dt=wdt))
-dtocc
-
-write_csv(dtocc, 'data/dtocc.csv')
-ggplot(dtocc, aes(x=ts, y=occ)) + geom_step()
-

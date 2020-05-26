@@ -32,7 +32,8 @@ summary(wdt$los)
 # View(wdt)
 
 ts_begin <- min(wdt$admission, na.rm = TRUE)
-ts_end <- max(wdt$admission, na.rm = TRUE)
+ts_end <- max(c(wdt$admission, wdt$discharge), na.rm = TRUE)
+
 tss <- seq(ts_begin, ts_end, by="1 hour")
 length(tss)
 # alt method of counting occupancy using a cross join
@@ -64,7 +65,7 @@ vdt <- melt.data.table(vdt, id.vars = "ts",
                        measure.vars = c("inpatients_t03", "inpatients_p03"),
                        variable.name = 'department',
                        value.name = 'inpatients')
-
+tail(vdt[department=='inpatients_t03'])
 
 ggplot(vdt, aes(x=ts, y=inpatients, colour=department)) + geom_step()
 ggsave('media/aggregate/figs/cc_occupancy_2020-05-12.png')
